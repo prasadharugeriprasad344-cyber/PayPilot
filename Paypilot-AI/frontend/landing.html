@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayPilot AI — Shop Smarter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #090d16;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #e2e8f0;
+    }
+
+    /* ── Saturn canvas fills the whole viewport ── */
+    #saturn-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+    #saturn-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ── Radial vignette so text pops ── */
+    .vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: radial-gradient(ellipse 70% 70% at 50% 50%,
+        transparent 30%,
+        rgba(9,13,22,0.55) 70%,
+        rgba(9,13,22,0.88) 100%);
+      pointer-events: none;
+    }
+
+    /* ── Hero content, centred over the planet ── */
+    .landing-content {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      pointer-events: none; /* let drag reach canvas by default */
+    }
+
+    /* Glass card */
+    .hero-card {
+      pointer-events: auto; /* buttons inside need clicks */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 48px 56px 44px;
+      background: rgba(13, 20, 38, 0.52);
+      backdrop-filter: blur(18px) saturate(1.4);
+      -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      border: 1px solid rgba(99, 179, 237, 0.13);
+      border-radius: 28px;
+      box-shadow:
+        0 8px 48px rgba(6, 182, 212, 0.08),
+        0 2px 8px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      max-width: 520px;
+      width: 90%;
+      text-align: center;
+      animation: cardIn 1s cubic-bezier(.16,1,.3,1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(32px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      background: rgba(6,182,212,0.12);
+      border: 1px solid rgba(6,182,212,0.28);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #22d3ee;
+    }
+    .badge-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #22d3ee;
+      box-shadow: 0 0 8px #22d3ee;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    /* Brand name */
+    .brand {
+      font-size: clamp(2.4rem, 6vw, 3.6rem);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #22d3ee 0%, #818cf8 55%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.03em;
+    }
+
+    /* Tagline */
+    .tagline {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      font-weight: 600;
+      color: #cbd5e1;
+      letter-spacing: -0.01em;
+    }
+
+    /* Sub-tagline */
+    .subtext {
+      font-size: 0.88rem;
+      color: #64748b;
+      max-width: 360px;
+      line-height: 1.6;
+    }
+
+    /* Divider */
+    .divider {
+      width: 48px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,179,237,0.4), transparent);
+    }
+
+    /* CTA button */
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 36px;
+      background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+      border: none;
+      border-radius: 14px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: -0.01em;
+      box-shadow: 0 4px 24px rgba(99,102,241,0.38);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,0.52); filter: brightness(1.07); }
+    .cta-btn:hover::before { opacity: 1; }
+    .cta-btn:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
+    .cta-arrow { font-size: 1.1rem; transition: transform 0.18s ease; }
+    .cta-btn:hover .cta-arrow { transform: translateX(4px); }
+
+    /* Drag hint */
+    .drag-hint {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: #475569;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+    .drag-hint svg { opacity: 0.5; }
+
+    /* Bottom corner version pill */
+    .version-pill {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 3;
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: #334155;
+      padding: 5px 12px;
+      border: 1px solid rgba(51,65,85,0.5);
+      border-radius: 999px;
+      background: rgba(9,13,22,0.5);
+      pointer-events: none;
+    }
+
+    /* Stars / sparkle overlay — purely decorative CSS dots */
+    .stars {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .stars span {
+      position: absolute;
+      width: 2px; height: 2px;
+      border-radius: 50%;
+      background: white;
+      opacity: 0;
+      animation: twinkle var(--d, 4s) var(--delay, 0s) ease-in-out infinite;
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: 0; transform: scale(0.6); }
+      50%      { opacity: var(--op, 0.4); transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- CSS star field (behind canvas) -->
+<div class="stars" id="star-field"></div>
+
+<!-- WebGL Saturn canvas -->
+<div id="saturn-container"></div>
+
+<!-- Vignette overlay -->
+<div class="vignette"></div>
+
+<!-- Hero content -->
+<div class="landing-content">
+  <div class="hero-card">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      AI-Powered Shopping
+    </div>
+
+    <h1 class="brand">PayPilot AI</h1>
+
+    <p class="tagline">Shop Smarter. Pay Faster. Powered by AI.</p>
+
+    <div class="divider"></div>
+
+    <p class="subtext">
+      Your intelligent shopping companion — from product discovery and smart comparison to seamless checkout.
+    </p>
+
+    <a class="cta-btn" href="/app">
+      Enter the App
+      <span class="cta-arrow">→</span>
+    </a>
+
+    <div class="drag-hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+      </svg>
+      Drag the planet to explore
+    </div>
+  </div>
+</div>
+
+<!-- Version pill -->
+<div class="version-pill">v1.0.0 · PayPilot AI</div>
+
+<script type="module">
+/* =========================================================
+   Particle Saturn — ported to vanilla JS / Three.js ES module
+   Original concept: OriginKit / Particle Saturn component
+   Ported: React/TS → vanilla JS + Three.js CDN
+   ========================================================= */
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js';
+
+// ── Star field ──────────────────────────────────────────────
+(function buildStarField() {
+  const container = document.getElementById('star-field');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('span');
+    s.style.left   = Math.random() * 100 + '%';
+    s.style.top    = Math.random() * 100 + '%';
+    s.style.setProperty('--d',     (3 + Math.random() * 5) + 's');
+    s.style.setProperty('--delay', (Math.random() * 6)     + 's');
+    s.style.setProperty('--op',    (0.1 + Math.random() * 0.5).toFixed(2));
+    container.appendChild(s);
+  }
+})();
+
+// ── Constants ────────────────────────────────────────────────
+const PERSPECTIVE       = 0.15;
+const VIEW_SPAN         = 6.4;
+const CORE_RADIUS       = 1;
+const MAX_MOTES         = 90000;
+const RING_THICKNESS    = 0.011;
+const RING_MOTE_FACTOR  = 1.35;
+const TAU               = Math.PI * 2;
+
+const DEFAULTS = {
+  coreColor:       '#997F00',
+  ringColor:       '#FFD400',
+  density:          20,
+  particleSize:     14,
+  glow:             20,
+  tilt:              6,
+  roll:              7,
+  spinSpeed:         7,
+  ringOptions: {
+    innerRadius:    105,
+    outerRadius:    262,
+    gaps:             1,
+    orbitSpeed:       9,
+  },
+  dragSensitivity:   2,
+  sizePercent:      134,
+};
+
+// ── Helpers ──────────────────────────────────────────────────
+function clamp(v, lo, hi, fallback) {
+  const n = (typeof v === 'number' && isFinite(v)) ? v : fallback;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function settingsFor(cfg) {
+  const ring    = cfg.ringOptions ?? DEFAULTS.ringOptions;
+  const density = clamp(cfg.density, 1, 20, DEFAULTS.density);
+
+  const baseMotes  = 600 + density * density * 95;
+  const coreMotes  = Math.min(MAX_MOTES, Math.round(baseMotes));
+  const ringMotes  = Math.min(MAX_MOTES, Math.round(baseMotes * RING_MOTE_FACTOR));
+
+  const innerFraction = clamp(ring.innerRadius, 105, 200, DEFAULTS.ringOptions.innerRadius) / 100;
+  const outerFraction = clamp(ring.outerRadius, 110, 300, DEFAULTS.ringOptions.outerRadius) / 100;
+
+  return {
+    coreMotes,
+    ringMotes,
+    moteSize:      0.5  + clamp(cfg.particleSize, 1, 20, DEFAULTS.particleSize) * 0.13,
+    glow:          0.15 + clamp(cfg.glow,          1, 20, DEFAULTS.glow)         * 0.055,
+    tiltRadians:   (clamp(cfg.tilt,      -80,  80, DEFAULTS.tilt)      * Math.PI) / 180,
+    rollRadians:   (clamp(cfg.roll,      -90,  90, DEFAULTS.roll)      * Math.PI) / 180,
+    spinRate:       clamp(cfg.spinSpeed,   0,  20, DEFAULTS.spinSpeed)  * 0.05,
+    innerRadius:    innerFraction * CORE_RADIUS,
+    outerRadius:    Math.max(innerFraction + 0.08, outerFraction) * CORE_RADIUS,
+    gapCount:       Math.round(clamp(ring.gaps, 0, 4, DEFAULTS.ringOptions.gaps)),
+    ringThickness:  RING_THICKNESS,
+    orbitRate:      clamp(ring.orbitSpeed, 0, 20, DEFAULTS.ringOptions.orbitSpeed) * 0.11,
+  };
+}
+
+function insideGap(S, radius, span) {
+  for (let g = 0; g < S.gapCount; g++) {
+    const centre  = S.innerRadius + span * ((g + 1) / (S.gapCount + 1));
+    const halfW   = span * (0.025 + 0.015 * (S.gapCount - g));
+    if (Math.abs(radius - centre) < halfW) return true;
+  }
+  return false;
+}
+
+function pickRingRadius(S, rng) {
+  const span = S.outerRadius - S.innerRadius;
+  let r, tries = 0;
+  do {
+    r = S.innerRadius + rng() * span;
+    tries++;
+  } while (insideGap(S, r, span) && tries < 200);
+  return r;
+}
+
+// Deterministic PRNG seeded per mote index
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed += 0x6D2B79F5;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ── Geometry builders ─────────────────────────────────────────
+function buildCloud(S) {
+  /* --- Planet (core) motes via Fibonacci spiral --- */
+  const corePos   = new Float32Array(S.coreMotes * 3);
+  const coreKind  = new Float32Array(S.coreMotes);  // 0 = core
+  const coreAlong = new Float32Array(S.coreMotes);
+  const coreSeed  = new Float32Array(S.coreMotes);
+  const coreRad   = new Float32Array(S.coreMotes);
+
+  const PHI = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < S.coreMotes; i++) {
+    const y     = 1 - (i / (S.coreMotes - 1)) * 2;
+    const r     = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = PHI * i;
+    corePos[i*3]     = CORE_RADIUS * r * Math.cos(theta);
+    corePos[i*3 + 1] = CORE_RADIUS * y;
+    corePos[i*3 + 2] = CORE_RADIUS * r * Math.sin(theta);
+    coreKind[i]  = 0;
+    coreAlong[i] = i / S.coreMotes;
+    coreSeed[i]  = mulberry32(i * 7919)();
+    coreRad[i]   = 0;
+  }
+
+  /* --- Ring motes --- */
+  const ringPos   = new Float32Array(S.ringMotes * 3);
+  const ringKind  = new Float32Array(S.ringMotes);  // 1 = ring
+  const ringAlong = new Float32Array(S.ringMotes);
+  const ringSeed  = new Float32Array(S.ringMotes);
+  const ringRad   = new Float32Array(S.ringMotes);
+
+  for (let i = 0; i < S.ringMotes; i++) {
+    const rng   = mulberry32(i * 6271 + 1);
+    const rad   = pickRingRadius(S, rng);
+    const angle = rng() * TAU;
+    const dz    = (rng() - 0.5) * 2 * S.ringThickness;
+    ringPos[i*3]     = rad * Math.cos(angle);
+    ringPos[i*3 + 1] = dz;
+    ringPos[i*3 + 2] = rad * Math.sin(angle);
+    ringKind[i]  = 1;
+    ringAlong[i] = i / S.ringMotes;
+    ringSeed[i]  = rng();
+    ringRad[i]   = rad;
+  }
+
+  /* --- Merge into one geometry --- */
+  const total = S.coreMotes + S.ringMotes;
+  const positions = new Float32Array(total * 3);
+  const kinds     = new Float32Array(total);
+  const alongs    = new Float32Array(total);
+  const seeds     = new Float32Array(total);
+  const radii     = new Float32Array(total);
+
+  positions.set(corePos,  0);
+  positions.set(ringPos,  S.coreMotes * 3);
+  kinds.set(coreKind,  0);
+  kinds.set(ringKind,  S.coreMotes);
+  alongs.set(coreAlong, 0);
+  alongs.set(ringAlong, S.coreMotes);
+  seeds.set(coreSeed,  0);
+  seeds.set(ringSeed,  S.coreMotes);
+  radii.set(coreRad,   0);
+  radii.set(ringRad,   S.coreMotes);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aKind',    new THREE.BufferAttribute(kinds,     1));
+  geo.setAttribute('aAlong',   new THREE.BufferAttribute(alongs,    1));
+  geo.setAttribute('aSeed',    new THREE.BufferAttribute(seeds,     1));
+  geo.setAttribute('aRadius',  new THREE.BufferAttribute(radii,     1));
+  return geo;
+}
+
+// ── GLSL shaders ──────────────────────────────────────────────
+const VERTEX_SHADER = /* glsl */`
+  attribute float aKind;
+  attribute float aAlong;
+  attribute float aSeed;
+  attribute float aRadius;
+
+  uniform float uTime;
+  uniform float uOrbitRate;
+  uniform float uMoteSize;
+  uniform float uGlow;
+  uniform float uCoreRadius;
+  uniform float uPerspective;
+
+  varying float vAlpha;
+  varying float vGlow;
+  varying float vKind;
+
+  void main() {
+    vec3 pos = position;
+
+    /* ── Orbit ring motes (Kepler: inner faster than outer) ── */
+    if (aKind > 0.5) {
+      float r     = aRadius;
+      float speed = uOrbitRate / pow(r + 0.001, 1.5);
+      float angle = atan(pos.z, pos.x) + uTime * speed;
+      pos.x = r * cos(angle);
+      pos.z = r * sin(angle);
+    }
+
+    /* ── Model → clip space ── */
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mv;
+
+    /* ── Cull far hemisphere of core (z < 0 in model space) ── */
+    if (aKind < 0.5 && position.z < 0.0) {
+      gl_Position.w = -1.0; /* behind camera — discarded */
+    }
+
+    /* ── Cull ring motes behind the planet body ── */
+    if (aKind > 0.5) {
+      vec4 mpos = modelMatrix * vec4(pos, 1.0);
+      /* project onto view plane and check distance vs planet radius */
+      vec3 toMote    = normalize(mpos.xyz - cameraPosition);
+      vec3 toCenter  = -cameraPosition;
+      float d        = dot(toCenter, toMote);
+      if (d > 0.0) {
+        vec3 closest = cameraPosition + toMote * d;
+        float dist2  = dot(closest, closest);
+        if (dist2 < uCoreRadius * uCoreRadius * 0.92) {
+          gl_Position.w = -1.0;
+        }
+      }
+    }
+
+    /* ── Perspective-correct point size ── */
+    float depth   = -mv.z;
+    float scaled  = uMoteSize * (1.0 / (depth * uPerspective + 1.0));
+    gl_PointSize  = max(0.5, scaled);
+
+    /* ── Alpha: twinkle + depth fade ── */
+    float twinkle = 0.75 + 0.25 * sin(uTime * (2.0 + aSeed * 3.0) + aSeed * 6.28);
+    float depthFade = clamp(1.0 - depth * 0.07, 0.3, 1.0);
+    vAlpha = twinkle * depthFade;
+    vGlow  = uGlow;
+    vKind  = aKind;
+  }
+`;
+
+const FRAGMENT_SHADER = /* glsl */`
+  precision highp float;
+
+  uniform vec3 uCoreColor;
+  uniform vec3 uRingColor;
+
+  varying float vAlpha;
+  varying float vGlow;
+  varying float vKind;
+
+  void main() {
+    /* circular soft disc per point sprite */
+    vec2  uv   = gl_PointCoord * 2.0 - 1.0;
+    float dist = length(uv);
+    if (dist > 1.0) discard;
+
+    float core = 1.0 - smoothstep(0.0, 1.0, dist);
+    float glow = exp(-dist * vGlow) * 0.4;
+    float alpha = (core + glow) * vAlpha;
+
+    vec3 color = mix(uCoreColor, uRingColor, vKind);
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+// ── SaturnScene class ─────────────────────────────────────────
+class SaturnScene {
+  constructor(container, cfg) {
+    this.container  = container;
+    this.cfg        = cfg;
+    this.S          = settingsFor(cfg);
+    this.clock      = new THREE.Clock();
+    this.drag       = { active: false, lastX: 0, lastY: 0, velX: 0, velY: 0 };
+    this.userAngleX = 0;  // accumulated from drag (pitch)
+    this.userAngleY = 0;  // accumulated from drag (yaw)
+
+    this._initRenderer();
+    this._initScene();
+    this._initPoints();
+    this._bindEvents();
+    this._animate();
+  }
+
+  _initRenderer() {
+    const w = this.container.clientWidth  || window.innerWidth;
+    const h = this.container.clientHeight || window.innerHeight;
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(w, h);
+    this.renderer.setClearColor(0x000000, 0);
+    this.container.appendChild(this.renderer.domElement);
+
+    // Camera: orthographic-ish using perspective with tight FOV
+    const aspect = w / h;
+    const fov    = Math.atan(PERSPECTIVE) * 2 * (180 / Math.PI);
+    this.camera  = new THREE.PerspectiveCamera(fov, aspect, 0.01, 1000);
+    this.camera.position.set(0, 0, VIEW_SPAN / 2);
+  }
+
+  _initScene() {
+    this.scene = new THREE.Scene();
+
+    // Group hierarchy:
+    //   scene → rollGroup → tiltGroup → spinGroup → points
+    this.rollGroup  = new THREE.Group();
+    this.tiltGroup  = new THREE.Group();
+    this.spinGroup  = new THREE.Group();
+
+    this.rollGroup.add(this.tiltGroup);
+    this.tiltGroup.add(this.spinGroup);
+    this.scene.add(this.rollGroup);
+
+    // Apply static tilt and roll
+    this.tiltGroup.rotation.x = this.S.tiltRadians;
+    this.rollGroup.rotation.z = this.S.rollRadians;
+  }
+
+  _initPoints() {
+    const S = this.S;
+    const geo = buildCloud(S);
+
+    this.uniforms = {
+      uTime:        { value: 0 },
+      uOrbitRate:   { value: S.orbitRate },
+      uMoteSize:    { value: S.moteSize * (S.sizePercent ?? 134) / 100 },
+      uGlow:        { value: S.glow },
+      uCoreRadius:  { value: CORE_RADIUS },
+      uPerspective: { value: PERSPECTIVE },
+      uCoreColor:   { value: new THREE.Color(this.cfg.coreColor) },
+      uRingColor:   { value: new THREE.Color(this.cfg.ringColor) },
+    };
+
+    // Blending: additive so overlapping motes glow brighter
+    const mat = new THREE.ShaderMaterial({
+      vertexShader:   VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
+      uniforms:       this.uniforms,
+      transparent:    true,
+      depthWrite:     false,
+      blending:       THREE.AdditiveBlending,
+    });
+
+    this.points = new THREE.Points(geo, mat);
+    // Apply size scale to group instead of shader for simplicity
+    const scale = (this.cfg.sizePercent ?? 134) / 100;
+    this.points.scale.setScalar(scale);
+    this.spinGroup.add(this.points);
+  }
+
+  _bindEvents() {
+    const el  = this.container;
+    const drag = this.drag;
+    const sens = (this.cfg.dragSensitivity ?? 2) * 0.004;
+
+    const onDown = (x, y) => { drag.active = true; drag.lastX = x; drag.lastY = y; drag.velX = 0; drag.velY = 0; };
+    const onMove = (x, y) => {
+      if (!drag.active) return;
+      const dx = x - drag.lastX;
+      const dy = y - drag.lastY;
+      drag.velX = dx * sens;
+      drag.velY = dy * sens;
+      this.userAngleY += drag.velX;
+      this.userAngleX += drag.velY;
+      drag.lastX = x; drag.lastY = y;
+    };
+    const onUp = () => { drag.active = false; };
+
+    el.addEventListener('mousedown',  e => onDown(e.clientX, e.clientY));
+    window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup',   onUp);
+
+    el.addEventListener('touchstart', e => { const t = e.touches[0]; onDown(t.clientX, t.clientY); }, { passive: true });
+    window.addEventListener('touchmove',  e => { const t = e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: true });
+    window.addEventListener('touchend', onUp);
+
+    // Resize
+    this._ro = new ResizeObserver(() => {
+      const w = this.container.clientWidth  || window.innerWidth;
+      const h = this.container.clientHeight || window.innerHeight;
+      this.renderer.setSize(w, h);
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+    });
+    this._ro.observe(this.container);
+  }
+
+  _animate() {
+    this._rafId = requestAnimationFrame(() => this._animate());
+    const dt = this.clock.getDelta();
+    const t  = this.clock.getElapsedTime();
+
+    // Spin
+    this.spinGroup.rotation.y += this.S.spinRate * dt;
+
+    // Inertia from drag
+    if (!this.drag.active) {
+      this.drag.velX *= 0.92;
+      this.drag.velY *= 0.92;
+    }
+    // Apply user drag as extra rotation on rollGroup
+    this.rollGroup.rotation.y = this.userAngleY;
+    // Note: we apply userAngleX as world-space by rotating around camera's x-axis
+    this.tiltGroup.rotation.x = this.S.tiltRadians + this.userAngleX;
+
+    this.uniforms.uTime.value = t;
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  destroy() {
+    cancelAnimationFrame(this._rafId);
+    this._ro.disconnect();
+    this.renderer.dispose();
+    this.container.innerHTML = '';
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+const saturn = new SaturnScene(document.getElementById('saturn-container'), DEFAULTS);
+</script>
+</body>
+</html>
